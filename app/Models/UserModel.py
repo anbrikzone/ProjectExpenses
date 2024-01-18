@@ -21,5 +21,21 @@ class Users(Database):
         self.cursor.execute(query)
         self.connection.commit()
     
-    def create_user(self, first_name, last_name, username, email, password):
-        super().create({'first_name': first_name, 'last_name': last_name, 'username': username, 'email': email, 'password': password})
+    def create_user(self, **kwargs):
+        try:
+            self.cursor.execute(f"INSERT INTO {self.table} ({', '.join(kwargs.keys())}) VALUES({', '.join(['?'] * len(kwargs.values()))})", list(kwargs.values()))
+            self.connection.commit()
+            return True
+        except:
+            return False
+
+    def get_user_by_credentials(self, username, password):
+        query = f"SELECT * FROM {self.table} WHERE username = ? AND password = ?"
+        self.cursor.execute(query, (username, password, ))
+        if self.cursor.fetchone() is not None:
+            result = self.cursor.fetchone()[0]
+        else:
+            result = None
+        return result
+    
+    
