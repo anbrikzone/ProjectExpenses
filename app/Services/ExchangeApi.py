@@ -10,7 +10,7 @@ class CurrencyExchangeApi:
         }
 
     def get_exhange_rate(self, from_currency, to_currency):
-        querystring = {"from":from_currency,"to":to_currency,"q":"1.0"}
+        querystring = {"from":from_currency,"to":to_currency,"q":1}
         response = requests.get(self.url, headers=self.headers, params=querystring)
 
         return response.json()

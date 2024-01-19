@@ -1,3 +1,6 @@
+import sqlite3
+import traceback
+import sys
 from app.Services.database import Database
 
 class Users(Database):
@@ -25,17 +28,22 @@ class Users(Database):
         try:
             self.cursor.execute(f"INSERT INTO {self.table} ({', '.join(kwargs.keys())}) VALUES({', '.join(['?'] * len(kwargs.values()))})", list(kwargs.values()))
             self.connection.commit()
-            return True
-        except:
-            return False
+            return self.cursor.lastrowid
+        except sqlite3.Error as er:
+            print('SQLite error: %s' % (' '.join(er.args)))
+            print("Exception class is: ", er.__class__)
+            print('SQLite traceback: ')
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            print(traceback.format_exception(exc_type, exc_value, exc_tb))
+            return 0
 
     def get_user_by_credentials(self, username, password):
-        query = f"SELECT * FROM {self.table} WHERE username = ? AND password = ?"
+        query = f"SELECT id FROM {self.table} WHERE username = ? AND password = ?"
         self.cursor.execute(query, (username, password, ))
-        if self.cursor.fetchone() is not None:
-            result = self.cursor.fetchone()[0]
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
         else:
-            result = None
-        return result
+            return None
     
     
