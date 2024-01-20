@@ -37,12 +37,11 @@ class Users(Database):
             print(traceback.format_exception(exc_type, exc_value, exc_tb))
             return 0
 
-    def get_user_by_credentials(self, username, password):
-        query = f"SELECT id FROM {self.table} WHERE username = ? AND password = ?"
-        self.cursor.execute(query, (username, password, ))
+    def get_pass_by_username(self, username):
+        self.cursor.execute(f"SELECT id, password FROM {self.table} WHERE username = ?", [username])
         result = self.cursor.fetchone()
         if result:
-            return result[0]
+            return result
         else:
             return None
     

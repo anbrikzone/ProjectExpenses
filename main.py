@@ -3,133 +3,172 @@ from app.Models.Expenses import Expenses
 from app.Services.ExchangeApi import CurrencyExchangeApi
 from datetime import datetime
 from getpass import getpass
+from hashlib import md5
+import re
+import os
+import csv
 
 db = r"app\Database\sqlite.db"
 
 class UI():
 
     def __init__(self) -> None:
-        self.session = {"uid": None, "auth": False}
+        self.session = 0
         self.user = Users(db)
         self.expenses = Expenses(db)
     
     # Authentication of user
     def user_auth(self):
-        self.prompt("First run of application. Please enter Username & Password. If you don't have account the program propose you to add additional info to register. Press Enter...")
-        self.username = self.prompt("Please enter Username: ")
+        print("Please enter Username & Password. If you don't have account the program propose you to add additional info to register.")
+        self.username = input("Username: ")
         self.password = getpass()
-        credentials = self.user.get_user_by_credentials(self.username, self.password)
-        if credentials is None:
+        # Get password from db by username
+        password_from_db = self.user.get_pass_by_username(self.username)
+        # If there's no such user in db, try to register him
+        if password_from_db is None:
             uid = self.user_reg()
             if uid > 0:
-                self.session["uid"] = uid
-                self.session["auth"] = True
+                self.session = uid
         else:
-            self.session["uid"] = credentials
-            self.session["auth"] = True
-
+            # if there is the user in db, check password. If password incorrect suggest to try again
+            if password_from_db[1] == md5(self.password.encode()).hexdigest():
+                self.session = password_from_db[0]
+            else:
+                self.session = -1
         return self.session
 
     # Registration of user
     def user_reg(self):
-        self.prompt("You are newbie in the app. Please enter additional information to proceed further. Press Enter...")
-        firstname = self.prompt("Please enter First Name: ")
-        lastname = self.prompt("Please enter Last Name: ")
-        email = self.prompt("Please enter Email: ")
+        input("You are newbie in the app. Please enter additional information to proceed further. Press Enter...")
+        firstname = input("First Name: ")
+        lastname = input("Last Name: ")
+        email = input("Email: ")
         
         result = self.user.create_user( 
                                         username = self.username, 
-                                        password = self.password, 
+                                        password = md5(self.password.encode()).hexdigest(), 
                                         first_name = firstname, 
                                         last_name = lastname, 
                                         email = email
                                         )
-        
-        if result:
-            return True
-        else:
-            return False
-        
-    def header(self):
-        text = '''
-            [1]: Record Expenses
-            [2]: Record Incomes
-            [3]: History of Expenses
-            [4]: Export report to *.csv
-            [5]: Exit'''
-        return print(text)
+        return result
     
-    def prompt(self, text):
-        return input(text)
+    # Clean screen of terminal
+    def clean(self):
+        if os.name == 'nt':
+            _ = os.system('cls')
+        else:
+            _ = os.system('clear')
+
+    # Header of Menu
+    def header(self):
+        text =  "[1]: Record Expenses\n" + \
+                "[2]: Record Incomes\n" + \
+                "[3]: History of Expenses\n" + \
+                "[4]: Export report to *.csv\n" + \
+                "[5]: Exit"
+        return print(text)
 
     # Main methods
-    # Record expenses
-    def record_expenses(self):
-        amount = float(self.prompt("Enter Amount: "))
-        description = self.prompt("Enter Description: ")
-        category = self.prompt("Enter Category: ")
-        type = self.prompt("Enter Type: ")
+    # Record expenses or income
+    def record(self, type):
+        amount = float(input("Amount: "))
+        description = input("Description: ")
+        category = input("Category: ")
 
         #Get data from exchange using API
         api = CurrencyExchangeApi()
         usd_rate = api.get_exhange_rate("USD", "KZT")
         gbp_rate = api.get_exhange_rate("GBP", "KZT")
-        save_expenses = self.expenses.record_expenses(
+        save_expenses = self.expenses.record(
                                             amount = amount, 
                                             description = description, 
                                             category = category,
-                                            type = type,
-                                            user_id = self.session["uid"], 
+                                            type = "expenses" if type == "expenses" else "income",
+                                            user_id = self.session, 
                                             date = datetime.now(), 
                                             amount_usd = round(amount / usd_rate, 2), 
                                             amount_gbp = round(amount / gbp_rate, 2)
                                             )
         if save_expenses:
-            self.prompt("The data has been recorded. Press Enter...")
+            input("The data has been recorded. Press Enter...")
         else:
-            self.prompt("Error is occured. The data has not been recorded. Please try again...")
-    
-    # Record incomes 
-    def record_incomes(self):
-        return True
+            input("Error is occured. The data has not been recorded. Please try again...")
     
     # Print history of expenses
-    def history_of_expenses(self):
-        return True
-    
-    # Export report to csv file
-    def export_csv(self):
+    def history(self, format):
+        flag_start = True
+        while flag_start:
+            start_date = input("Enter Start Date: ")
+            if not re.match(r"[\d]{2}.[\d]{2}.[\d]{4}", start_date):
+                print ("Template for dates is [dd.mm.yyyy]")
+            else:
+                flag_start = False
+        
+        flag_end = True
+        while flag_end:        
+            end_date = input("Enter End Date: ")
+            if not re.match(r"[\d]{2}.[\d]{2}.[\d]{4}", end_date):
+                print("Template for dates is [dd.mm.yyyy]")
+            else:
+                flag_end = False
+        
+        start_date = datetime.strptime(start_date, "%d.%m.%Y").strftime("%Y-%m-%d")
+        end_date = datetime.strptime(end_date, "%d.%m.%Y").strftime("%Y-%m-%d")
+        result = self.expenses.history(start_date, end_date)
+        
+        if format == "history":
+            for row in result:
+                amount, description, category, type, date, amount_usd, amount_gbp = row
+                print(f"[{date.split(" ")[0]}] Type: {type}; Amount: {amount} ₸/[${amount_usd}/£{amount_gbp}]; Category: {category}; Description: {description};")
+            input("Press Enter...")
+        
+        elif format == "report":
+            with open(f"{datetime.now().strftime("%d_%m_%Y")}_report_expenses.csv", "w", newline="") as csv_file:
+                writer = csv.writer(csv_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(["Date", "Type", "Amount", "Amount in USD", "Amount in GBP", "Category", "Description"])
+                if len(result) > 0:
+                    for row in self.expenses.history(start_date, end_date):
+                        amount, description, category, type, date, amount_usd, amount_gbp = row
+                        writer.writerow([date.split(" ")[0], type, amount, amount_usd, amount_gbp, category, description])
+                    input(f"The report {datetime.now().strftime("%d_%m_%Y")}_report_expenses.csv is ready. Press Enter...")
+                else:
+                    input("There is no data in db for report. Press Enter...")
         return True
 
     def app_exit(self):
-        return True
+        exit()
 
     def main(self):
-        if self.session["auth"]:
+        if self.session > 0:
+            self.clean()
             self.header()
             try:
-                option = int(self.prompt("Press number [1-5] to choose option: "))
+                option = int(input("Press number [1-5] to choose option: "))
                 match option:
                     case 1:
-                        return self.record_expenses()
+                        return self.record("expenses")
                     case 2:
-                        return self.record_incomes()
+                        return self.record("income")
                     case 3:
-                        return self.history_of_expenses()
+                        return self.history("history")
                     case 4:
-                        return self.export_csv()
+                        return self.history("report")
                     case 5:
                         return self.app_exit()
-                    case _:
-                        return True
             except Exception as e:
-                self.prompt(f"Error: {e} \nYour input is wrong. Please try again.")
+                input(f"Error: {e} \nYour input is wrong. Please try again.")
 
         else:
-            if self.user_auth():
+            if self.session == 0:
+                self.user_auth()
                 self.main()
+            elif self.session == -1:
+                self.session = 0
+                input("Your password is not correct. Please try again.")
             else:
-                self.prompt("The problem is occured during the registration proccess. Please connect to admin to resolve it (anatoliy@brovarnik.kz)")
+                self.session = 0
+                input("The problem is occured during the registration proccess.")
 
 if __name__ == "__main__":
     ui = UI()

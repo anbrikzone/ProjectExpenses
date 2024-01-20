@@ -1,6 +1,4 @@
 import sqlite3
-import traceback
-import sys
 from app.Services.database import Database
 
 class Expenses(Database):
@@ -28,15 +26,15 @@ class Expenses(Database):
         self.cursor.execute(query)
         self.connection.commit()
 
-    def record_expenses(self, **kwargs):
+    def record(self, **kwargs):
         try:
             self.cursor.execute(f"INSERT INTO {self.table} ({', '.join(kwargs.keys())}) VALUES({', '.join(['?'] * len(kwargs.values()))})", list(kwargs.values()))
             self.connection.commit()
             return True
         except sqlite3.Error as er:
             print('SQLite error: %s' % (' '.join(er.args)))
-            print("Exception class is: ", er.__class__)
-            print('SQLite traceback: ')
-            exc_type, exc_value, exc_tb = sys.exc_info()
-            print(traceback.format_exception(exc_type, exc_value, exc_tb))
             return False
+        
+    def history(self, start_date, end_date):
+        result = self.cursor.execute(f"SELECT amount, description, category, type, date, amount_usd, amount_gbp FROM {self.table} WHERE date >= ? AND date <= ? ORDER BY type, date ASC", (start_date, end_date,))
+        return result.fetchall()
