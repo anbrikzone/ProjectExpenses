@@ -95,7 +95,7 @@ class UI():
         else:
             input("Error is occured. The data has not been recorded. Please try again...")
     
-    # Print history of expenses
+    # Print history or create report of expenses
     def history(self, format):
         flag_start = True
         while flag_start:
@@ -118,11 +118,14 @@ class UI():
         result = self.expenses.history(start_date, end_date)
         
         if format == "history":
-            for row in result:
-                amount, description, category, type, date, amount_usd, amount_gbp = row
-                print(f"[{date.split(" ")[0]}] Type: {type}; Amount: {amount} ₸/[${amount_usd}/£{amount_gbp}]; Category: {category}; Description: {description};")
-            input("Press Enter...")
-        
+            if len(result) > 0:
+                for row in result:
+                    amount, description, category, type, date, amount_usd, amount_gbp = row
+                    print(f"[{date.split(" ")[0]}] Type: {type}; Amount: {amount} ₸/[${amount_usd}/£{amount_gbp}]; Category: {category}; Description: {description};")
+                input("Press Enter...")
+            else:
+                    input("There is no data in db for showing. Press Enter...")
+
         elif format == "report":
             with open(f"{datetime.now().strftime("%d_%m_%Y")}_report_expenses.csv", "w", newline="") as csv_file:
                 writer = csv.writer(csv_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
