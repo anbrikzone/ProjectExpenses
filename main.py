@@ -127,7 +127,7 @@ class UI():
                     print(f"[{date.split(" ")[0]}] Type: {type}; Amount: {amount} ₸/[${amount_usd}/£{amount_gbp}]; Category: {category}; Description: {description};")
                 input("Press Enter...")
             else:
-                    input("There is no data in db for showing. Press Enter...")
+                input("There is no data in db for showing. Press Enter...")
         
         # create report
         elif format == "report":
