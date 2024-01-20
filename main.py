@@ -97,6 +97,8 @@ class UI():
     
     # Print history or create report of expenses
     def history(self, format):
+        
+        #Validate dates
         flag_start = True
         while flag_start:
             start_date = input("Enter Start Date: ")
@@ -112,11 +114,12 @@ class UI():
                 print("Template for dates is [dd.mm.yyyy]")
             else:
                 flag_end = False
-        
+        # Format dates for db
         start_date = datetime.strptime(start_date, "%d.%m.%Y").strftime("%Y-%m-%d")
         end_date = datetime.strptime(end_date, "%d.%m.%Y").strftime("%Y-%m-%d")
         result = self.expenses.history(start_date, end_date)
         
+        # show history
         if format == "history":
             if len(result) > 0:
                 for row in result:
@@ -125,7 +128,8 @@ class UI():
                 input("Press Enter...")
             else:
                     input("There is no data in db for showing. Press Enter...")
-
+        
+        # create report
         elif format == "report":
             with open(f"{datetime.now().strftime("%d_%m_%Y")}_report_expenses.csv", "w", newline="") as csv_file:
                 writer = csv.writer(csv_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -138,10 +142,12 @@ class UI():
                 else:
                     input("There is no data in db for report. Press Enter...")
         return True
-
+    
+    # Exit app
     def app_exit(self):
         exit()
 
+    # Main method
     def main(self):
         if self.session > 0:
             self.clean()
