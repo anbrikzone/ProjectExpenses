@@ -1,12 +1,12 @@
 from app.Models.UserModel import Users
 from app.Models.Expenses import Expenses
 from app.Services.ExchangeApi import CurrencyExchangeApi
+from app.Services.ReportGenerator import CSV
 from datetime import datetime
 from getpass import getpass
 from hashlib import md5
 import re
 import os
-import csv
 
 db = r"app\Database\sqlite.db"
 
@@ -16,6 +16,7 @@ class UI():
         self.session = 0
         self.user = Users(db)
         self.expenses = Expenses(db)
+        self.csv = CSV()
     
     # Authentication of user
     def user_auth(self):
@@ -131,16 +132,7 @@ class UI():
         
         # create report
         elif format == "report":
-            with open(f"{datetime.now().strftime("%d_%m_%Y")}_report_expenses.csv", "w", newline="") as csv_file:
-                writer = csv.writer(csv_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(["Date", "Type", "Amount", "Amount in USD", "Amount in GBP", "Category", "Description"])
-                if len(result) > 0:
-                    for row in self.expenses.history(start_date, end_date):
-                        amount, description, category, type, date, amount_usd, amount_gbp = row
-                        writer.writerow([date.split(" ")[0], type, amount, amount_usd, amount_gbp, category, description])
-                    input(f"The report {datetime.now().strftime("%d_%m_%Y")}_report_expenses.csv is ready. Press Enter...")
-                else:
-                    input("There is no data in db for report. Press Enter...")
+            self.csv.report(result)
         return True
     
     # Exit app
@@ -167,7 +159,6 @@ class UI():
                         return self.app_exit()
             except Exception as e:
                 input(f"Error: {e} \nYour input is wrong. Please try again.")
-
         else:
             if self.session == 0:
                 self.user_auth()
